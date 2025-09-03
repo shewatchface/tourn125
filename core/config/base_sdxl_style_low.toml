@@ -32,16 +32,16 @@ max_timestep = 1000
 max_token_length = 128
 max_train_steps = 1
 min_bucket_reso = 256
-min_snr_gamma = 7
+min_snr_gamma = 5
 mixed_precision = "bf16"
-network_alpha = 64
-network_args = []
-network_dim = 64
+network_alpha = 32
+network_args = ["conv_dim=4", "conv_alpha=4", "dropout=null"]
+network_dim = 32
 network_module = "networks.lora"
 no_half_vae = true
 noise_offset_type = "Original"
-optimizer_args = ["betas=(0.9,0.999)", "weight_decay=0.0"]
-optimizer_type = "AdamW8bit"
+optimizer_args = ["decouple=True", "d_coef=0.8", "weight_decay=0.01", "use_bias_correction=True", "safeguard_warmup=True"]
+optimizer_type = "prodigy"
 output_dir = "/app/outputs"
 output_name = "last"
 pretrained_model_name_or_path = "stabilityai/stable-diffusion-xl-base-1.0"

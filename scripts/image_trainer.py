@@ -27,6 +27,7 @@ sys.path.append(project_root)
 import core.constants as cst
 import trainer.constants as train_cst
 import trainer.utils.training_paths as train_paths
+from trainer.utils.style_detection import detect_styles_in_prompts
 from core.config.config_handler import save_config_toml
 from core.dataset.prepare_diffusion_dataset import prepare_dataset
 from core.models.utility_models import ImageModelType
@@ -136,11 +137,29 @@ def parse_loss_logs(task_id: str):
     return entries
 
 
-def get_image_training_config_template_path(model_type: str, level="win") -> str:
+def get_image_training_config_template_path(model_type: str, train_data_dir: str, level="win") -> str:
     model_type = model_type.lower()
     if model_type == ImageModelType.SDXL.value:
-        return str(pathlib.Path(train_cst.IMAGE_CONTAINER_CONFIG_TEMPLATE_PATH) / f"base_sdxl_{level}.toml")
+        prompts_path = os.path.join(train_data_dir, "10_lora style")
+        prompts = []
+        for file in os.listdir(prompts_path):
+            if file.endswith(".txt"):
+                with open(os.path.join(prompts_path, file), "r") as f:
+                    prompt = f.read().strip()
+                    prompts.append(prompt)
+
+        styles = detect_styles_in_prompts(prompts)
+        print(f"Styles: {styles}")
+
+        if styles:
+            print(f"config: base_sdxl_style_{level}.toml", flush=True)
+            return str(pathlib.Path(train_cst.IMAGE_CONTAINER_CONFIG_TEMPLATE_PATH) / f"base_sdxl_style_{level}.toml")
+        else:
+            print(f"config: base_sdxl_person_{level}.toml", flush=True)
+            return str(pathlib.Path(train_cst.IMAGE_CONTAINER_CONFIG_TEMPLATE_PATH) / f"base_sdxl_person_{level}.toml")
+
     elif model_type == ImageModelType.FLUX.value:
+        print(f"config: base_flux_{level}.toml", flush=True)
         return str(pathlib.Path(train_cst.IMAGE_CONTAINER_CONFIG_TEMPLATE_PATH) / f"base_flux_{level}.toml")
 
 
@@ -162,8 +181,11 @@ def create_config(task_id, model, model_type, addconfig, expected_repo_name=None
     warmup_limit = 5
     warmup_step = 1
 
+    """Get the training data directory"""
+    train_data_dir = train_paths.get_image_training_images_dir(task_id)
+
     """Create the diffusion config file"""
-    config_template_path = get_image_training_config_template_path(model_type, level)
+    config_template_path = get_image_training_config_template_path(model_type, train_data_dir, level)
 
     with open(config_template_path, "r") as file:
         config = toml.load(file)
@@ -272,13 +294,13 @@ def run_training(task_id, model, model_type, expected_repo_name, hours_to_comple
     docker_level = ["low"]
     # docker_batch = [8,8,8,4,4,4]
     docker_batch = [1,1,1]
-    docker_seq = ["512,512","448,448","384,384"]
+    docker_seq = ["1024,1024","512,512","448,448","384,384"]
     docker_lrate = 0.0001
     last_lrate = 0.0001
     best_lrate = 0.0001
-    docker_unet_lrate = 0.0001
-    last_unet_lrate = 0.0001
-    best_unet_lrate = 0.0001
+    docker_unet_lrate = 0.00001
+    last_unet_lrate = 0.00001
+    best_unet_lrate = 0.00001
     docker_gradient = 16
     docker_runtime = 10
     docker_config = {}
@@ -576,7 +598,7 @@ def run_training(task_id, model, model_type, expected_repo_name, hours_to_comple
                 dummy_loss = calculate_avg_loss_from_file(task_id)
                 print(f"dummy_loss: {dummy_loss}", flush=True)
 
-                if dummy_loss < docker_loss*1.2:
+                if dummy_loss < docker_loss*1.1:
                     docker_loss = dummy_loss
                     docker_failed = True
 

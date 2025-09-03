@@ -1649,7 +1649,7 @@ class NetworkTrainer:
         if is_main_process and (args.save_state or args.save_state_on_train_end):
             train_util.save_state_on_train_end(args, accelerator)
 
-        if is_main_process and args.last_loss*1.2 >= current_loss:
+        if is_main_process and args.last_loss*1.1 >= current_loss:
             ckpt_name = train_util.get_last_ckpt_name(args, "." + args.save_model_as)
             save_model(ckpt_name, network, global_step, num_train_epochs, force_sync_upload=True)
             accelerator.print("save_model is_main_process")
